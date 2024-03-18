@@ -13,13 +13,11 @@ class iniParser
 private:
     string _filename;
     typedef map<string, string> var_val;
-    //typedef map<string, var_val> section;
     map<string, var_val> section;
-    //vector<vector<string, vMap> val;
 
     void readFile(ifstream &in);
     void add_var_val(string section_string, string var, string val);
-
+    string get_value_string(string section_str, string var);
     string trim(const std::string &str,
                 const std::string &whitespace = " \t");
 
@@ -27,9 +25,14 @@ public:
 
     iniParser(string filename);
 
-
+    template<typename T>
+    T get_value(string section_str, string var)
+    {
+        static_assert(sizeof(T) == -1, "not implemented type for get_value");
+    }
 };
 
+// Конструктор, в нем пробуем открыть файл
 iniParser::iniParser(std::string filename)
 {
 
@@ -41,12 +44,13 @@ iniParser::iniParser(std::string filename)
         readFile(ini_file);
     } else
     {
-        cout << "Ошибка открытия файла" << endl;
+        throw "Error open file"; // исключение если файл не удается открыть
     }
 
 
 }
 
+//Добавляем в карту карт секцию - переменную - значение
 void iniParser::add_var_val(string section_string, string var, string val)
 {
     bool found = false;
@@ -74,6 +78,7 @@ void iniParser::add_var_val(string section_string, string var, string val)
     }
 }
 
+//Непосредственно чтение файл
 void iniParser::readFile(ifstream &in)
 {
     string temp_line;
@@ -110,6 +115,7 @@ void iniParser::readFile(ifstream &in)
 
 }
 
+//Удаляем лишние символы в начале и конце строки
 string iniParser::trim(const std::string &str,
                        const std::string &whitespace)
 {
@@ -123,9 +129,99 @@ string iniParser::trim(const std::string &str,
     return str.substr(strBegin, strRange);
 }
 
+//Получаем значение указанной переменной из указанной секции в виде строки
+string iniParser::get_value_string(std::string section_str, std::string var)
+{
+    string found_sec, found;
+    for (auto& section_read: section)
+    {
+        if (section_read.first == section_str)
+        {
+            found_sec = section_read.first;
+            for (auto& var_it: section_read.second)
+            {
+                if(var_it.first == var)
+                {
+                    found = var_it.second;
+                }
+            }
+        }
+    }
+    if (found_sec.empty()){ throw "Section not found";}
+    else if (found.empty()){throw "Variable not found";}
+    else { return found;}
+}
+
+
+//Шаблонные методы получение значения для различных типов данных
+template<>
+string iniParser::get_value(std::string section_str, std::string var)
+{
+    return get_value_string(section_str, var);
+}
+
+template<>
+int iniParser::get_value(std::string section_str, std::string var)
+{
+    string val_str = get_value_string(section_str, var);
+    try
+    {
+        int val_int = stoi(val_str);
+        return val_int;
+    }
+    catch (...)
+    {
+        throw "Conversion error to int";
+    }
+
+}
+
+template<>
+double iniParser::get_value(std::string section_str, std::string var)
+{
+    string val_str = get_value_string(section_str, var);
+    try
+    {
+        double val_double = stod(val_str);
+        return val_double;
+    }
+    catch (...)
+    {
+        throw "Conversion error to double";
+    }
+}
+
+template<>
+float iniParser::get_value(std::string section_str, std::string var)
+{
+    string val_str = get_value_string(section_str, var);
+    try
+    {
+        float val_float = stof(val_str);
+        return val_float;
+    }
+    catch (...)
+    {
+        throw "Conversion error to float";
+    }
+}
+
+
 int main()
 {
-    iniParser parser("in.ini");
-    //auto value = parser.get_value<int>("section.value");
+    try
+    {
+        iniParser parser("in.ini");
+        cout << parser.get_value<string>("Section1", "var1") << endl;
+        cout << parser.get_value<int>("Section1", "var1") << endl;
+        cout << parser.get_value<double>("Section1", "var1") << endl;
+        //cout << parser.get_value<char>("Section1", "var1") << endl;
+        
+    }
+    catch (const char* ex)
+    {
+        cout << ex << endl;
+    }
+
     return 0;
 }
